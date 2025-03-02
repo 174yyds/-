@@ -1,0 +1,465 @@
+#include <iostream>
+#include <string>
+#include<fstream>
+using namespace std;
+
+#define Max 1000
+#define sum 30
+
+void Menu1() {
+    cout << "**********旅店管理系统**********" << endl;
+    cout << "------------1.登录------------" << endl;
+    cout << "------------2.注册------------" << endl;
+    cout << "------------0.退出------------" << endl;
+    cout << "********************************" << endl;
+}
+
+struct Person {
+    string m_name;
+    int m_password;
+    string role;
+    int roomNumber;//顾客预定的房间号，-1表示未预定
+    double balance;//顾客余额
+    bool isMember;//是否未会员顾客
+};
+
+void Menu2(const Person& currentUser) {
+    cout << "**********旅店管理系统**********" << endl;
+    cout << "欢迎顾客: " << currentUser.m_name << " 当前余额: " << currentUser.balance << " 享受折扣: " << (currentUser.isMember ?"8 折":"无折扣") << endl;
+    cout << "------------1.查看空闲房间------------" << endl;
+    cout << "------------2.开房------------" << endl;
+    cout << "------------3.退房------------" << endl;
+    cout << "------------4.查看我的房卡------------" << endl;
+    cout << "------------5.充值------------" << endl;
+    cout << "------------0.退出登录------------" << endl;
+    cout << "********************************" << endl;
+}
+
+void Menuadmin() {
+    cout << "**********旅店管理系统**********" << endl;
+    cout << "         欢迎管理员：admin       " << endl;
+    cout << "------------1.增加房间------------" << endl;
+    cout << "------------2.删除房间------------" << endl;
+    cout << "------------0.退出登录------------" << endl;
+    cout << "********************************" << endl;
+}
+
+struct add_book {
+    Person personArray[Max];
+    int m_Size;
+
+    void saveToFile(const string& filename) {//保存数据
+        ofstream file(filename);
+        if (file.is_open())
+        {
+            for (int i = 0; i < m_Size; i++)
+            {
+                file << personArray[i].m_name << " "
+                    << personArray[i].m_password << " "
+                    << personArray[i].role << " "
+                    << personArray[i].roomNumber << " "
+                    << personArray[i].balance << " "
+                    << personArray[i].isMember << endl;
+            }
+            file.close();
+            cout << "用户数据已保存到文件 " << filename << endl;
+        }
+        else {
+            cout << "无法打开文件 " << filename << " 进行保存！" << endl;
+        }
+    }
+    void loadFromFile(const string& filename)
+    {
+        ifstream file(filename);
+        if (file.is_open()) {
+            m_Size = 0;//重置用户数量
+            string name, role;
+            int password, roomNumber;
+            double balance;
+            bool isMember;
+            while (file >> name >> password >> role >> roomNumber >> balance >> isMember) {
+                personArray[m_Size].m_name = name;
+                personArray[m_Size].m_password = password;
+                personArray[m_Size].role = role;
+                personArray[m_Size].roomNumber = roomNumber;
+                personArray[m_Size].balance = balance;
+                personArray[m_Size].isMember = isMember;
+                m_Size++;
+            }
+            file.close();
+            cout << "用户数据已从文件 " << filename << " 加载" << endl;
+        }
+        else {
+            cout << "无法打开文件 " << filename << " 进行加载！" << endl;
+        }
+    }
+};
+
+struct room {
+    //设立房间号 1 2 3 ......30
+    int r_n_state;//房间状态（0为空，1为有人）
+    string roomType;//房间类型：高等、中等、简易
+    double price;//房间价格
+};
+
+struct useroom {
+    room roomArrary[sum];//最大房间数
+    int r_Size;//房间序号
+
+    void saveToFile(const string& filename) {
+        ofstream file(filename);
+        if (file.is_open()) {
+            for (int i = 0; i < sum; i++)
+            {
+                file << roomArrary[i].r_n_state << " "
+                    << roomArrary[i].roomType << " "
+                    << roomArrary[i].price << endl;
+            }
+            file.close();
+            cout << "房间数据已保存到文件" << filename << endl;
+        }
+        else {
+            cout << "无法打开文件 " << filename << " 进行保存！" << endl;
+        }
+    }
+
+    void loadFromFile(const string& filename) {
+        ifstream file(filename);
+        if (file.is_open()) {
+            for (int i = 0; i < sum; i++)
+            {
+                file >> roomArrary[i].r_n_state >> roomArrary[i].roomType >> roomArrary[i].price;
+            }
+            file.close();
+            cout << "房间数据已从文件 " << filename << " 加载" << endl;
+        }
+        else {
+            cout << "无法打开文件 " << filename << " 进行加载！" << endl;
+        }
+    }
+};
+
+
+int login(add_book* abs, string name, int password) {
+    for (int i = 0; i < abs->m_Size; i++) {
+        if (abs->personArray[i].m_name == name && abs->personArray[i].m_password == password) {
+            cout << "登录成功！" << endl;
+            if (abs->personArray[i].role == "admin")cout << " 欢迎管理员 " << name << " (" << abs->personArray[i].role << ")" << endl;
+            else { cout << " 欢迎顾客 " << name << " (" << abs->personArray[i].role << ")" << endl; }
+            return i;//返回用户索引
+        }
+    }
+    cout << "登录失败，用户名或密码错误！" << endl;
+    return -1;
+}
+
+void showAvailableRooms(useroom* r_abs) {
+    cout << "空闲房间列表：" << endl;
+    for (int i = 0; i < sum; i++)
+    {
+        if (r_abs->roomArrary[i].r_n_state == 0)
+        {
+            cout << "房间号: " << i+1 << "，类型: " << r_abs->roomArrary[i].roomType
+                << "，价格: " << r_abs->roomArrary[i].price << " 元/晚" << endl;
+        }
+    }
+}
+
+void bookRoom(add_book* abs, useroom* r_abs, string name) {
+    int roomNumber;
+    cout << "请输入要预定的房间号：";
+    cin >> roomNumber;
+    if (roomNumber<1 || roomNumber>sum)
+    {
+        cout << "房间号无效！" << endl;
+        return;
+    }
+    if (r_abs->roomArrary[roomNumber - 1].r_n_state == 1)
+    {
+        cout << "房间已被预定！" << endl;
+        return;
+    }
+    for (int i = 0; i < abs->m_Size; i++)
+    {
+        if (abs->personArray[i].m_name == name) {
+            if (abs->personArray[i].roomNumber != -1) {
+                cout << "您已经预定了房间" << abs->personArray[i].roomNumber << ",请先退房!" << endl;
+                return;
+            }
+
+            //计算实际费用
+            double price = r_abs->roomArrary[roomNumber - 1].price;
+            if (abs->personArray[i].isMember) {
+                price *= 0.8;//会员享受8折优惠
+            }
+            if (abs->personArray[i].balance < price) {
+                cout << "余额不足，无法预定！" << endl;
+                return;
+            }
+            //扣减余额
+            abs->personArray[i].balance -= price;
+            r_abs->roomArrary[roomNumber - 1].r_n_state = 1;
+            abs->personArray[i].roomNumber = roomNumber;
+            cout << "预定成功！房间号：" << roomNumber << "，实际费用" << price << "元" << endl;
+            return;
+        }
+    }
+    cout << "用户未找到！" << endl;
+}
+
+void checkOut(add_book* abs, useroom* r_abs, string name)
+{
+    for (int i = 0; i < abs->m_Size; i++)
+    {
+        if (abs->personArray[i].m_name == name) {
+            if (abs->personArray[i].roomNumber == -1) {
+                cout << "您没有预定任何房间!" << endl;
+                return;
+            }
+            int roomNumber = abs->personArray[i].roomNumber;
+            r_abs->roomArrary[roomNumber - 1].r_n_state = 0;
+            abs->personArray[i].roomNumber = -1;
+            cout << "退房成功！房间号：" << roomNumber << endl;
+            return;
+        }
+    }
+    cout << "用户未找到!" << endl;
+}
+
+void showMyroom(add_book* abs, string name) {
+    for (int i = 0; i < abs->m_Size; i++)
+    {
+        if (abs->personArray[i].m_name == name) {
+            if (abs->personArray[i].roomNumber == -1) {
+                cout << "您没有预定任何房间" << endl;
+            }
+
+            else {
+                cout << "您预定的房间是：" << abs->personArray[i].roomNumber << endl;
+            }
+            return;
+        }
+    }
+    cout << "用户未找到！" << endl;
+}
+
+void recharge(add_book* abs, string name)
+{
+    double amount;
+    cout << "请输入充值金额：";
+    cin >> amount;
+    if (amount <= 0)
+    {
+        cout << "充值金额必须大于0！" << endl;
+        return;
+    }
+    for (int i = 0; i < abs->m_Size; i++)
+    {
+        if (abs->personArray[i].m_name == name)
+        {
+            abs->personArray[i].balance += amount;
+            cout << "充值成功！当前余额：" << abs->personArray[i].balance << endl;
+            return;
+        }
+    }
+    cout << "用户未找到！" << endl;
+}
+
+void addRoom(useroom* r_abs)
+{
+    if (r_abs->r_Size >= sum)
+    {
+        cout << "房间数量已达上限，无法增加！" << endl;
+        return;
+    }
+    int roomNumber = r_abs->r_Size + 1;
+    r_abs->roomArrary[roomNumber - 1].r_n_state = 0;//初始状态为空闲
+    r_abs->r_Size++;
+    cout << "房间增加成功！房间号：" << roomNumber << endl;
+}
+
+void deleteRoom(useroom* r_abs)
+{
+    int roomNumber;
+    cout << "请输入要删除的房间号：";
+    cin >> roomNumber;
+    if (roomNumber < 1 || roomNumber>r_abs->r_Size) {
+        cout << "房间号无效！" << endl;
+        return;
+    }
+    if (r_abs->roomArrary[roomNumber - 1].r_n_state == 1)
+    {
+        cout << "房间已被预订，无法删除！" << endl;
+        return;
+    }
+    //将房间标记为无效
+    r_abs->roomArrary[roomNumber - 1].r_n_state = -1;
+    cout << "房间删除成功！房间号：" << roomNumber << endl;
+}
+
+void Enter_Menu2(add_book* abs,useroom* r_abs) {
+    string name;
+    int password;
+    cout << "请输入用户名：";
+    cin >> name;
+    cout << "请输入密码：";
+    cin >> password;
+
+    int userIndex = login(abs, name, password);
+    if (userIndex != -1)
+    {
+        if (abs->personArray[userIndex].role == "admin") {
+            int choice;//管理员菜单
+            while (true) {
+                Menuadmin();
+                cout << "你好，管理员，请输入操作数:>";
+                cin >> choice;
+                switch (choice) {
+                case 1:
+                    addRoom(r_abs);
+                    break;
+                case 2:
+                    deleteRoom(r_abs);
+                    break;
+                case 0:
+                    cout << "退出登录，返回主菜单" << endl;
+                    return;
+                default:
+                    cout << "输入错误，请重新输入！" << endl;
+                    break;
+                }
+                system("pause");
+                system("cls");
+            }
+        }
+        else {//顾客菜单
+            int choice;
+            while (true) {
+                Menu2(abs->personArray[userIndex]);//传递当前用户信息
+                cout << "请输入操作数:>";
+                cin >> choice;
+                switch (choice) {
+                case 1:
+                    showAvailableRooms(r_abs);
+                    break;
+                case 2:
+                    bookRoom(abs, r_abs, name);
+                    break;
+                case 3:
+                    checkOut(abs, r_abs, name);
+                    break;
+                case 4:
+                    showMyroom(abs, name);
+                    break;
+                case 5:
+                    recharge(abs, name);
+                    break;
+                case 0:
+                    cout << "退出登录，返回主菜单" << endl;
+                    return;
+                default:
+                    cout << "输入错误，请重新输入！" << endl;
+                    break;
+                }
+                system("pause");
+                system("cls");
+            }
+        }
+    }
+    else {
+        system("pause");
+        system("cls");
+    }
+}
+
+void addPerson(add_book* abs) {
+    if (abs->m_Size == Max) {
+        cout << "录入账户已满，无法添加！" << endl;
+        return;
+    }
+
+    string name;
+    int password;
+    string role;
+    bool isMember;
+
+    cout << "请输入账户名：";
+    cin >> name;
+    cout << "请输入密码：";
+    cin >> password;
+    cout << "请输入角色（admin/member）：";
+    cin >> role;
+
+    if (role == "admin")
+    {
+        isMember = false;
+    }
+    else {
+        cout << "是否为会员顾客（1是，0否）：";
+        cin >> isMember;
+    }
+
+    abs->personArray[abs->m_Size].m_name = name;
+    abs->personArray[abs->m_Size].m_password = password;
+    abs->personArray[abs->m_Size].role = role;
+    abs->personArray[abs->m_Size].roomNumber = -1; // 初始化未预订房间
+    abs->personArray[abs->m_Size].balance = 0;     // 初始化余额为 0
+    abs->personArray[abs->m_Size].isMember = isMember; // 设置会员状态
+    abs->m_Size++;
+
+    cout << "用户注册成功！" << endl;
+    system("pause");
+    system("cls");
+}
+int main() {
+    int select = 0;
+    add_book abs;
+    abs.m_Size = 0;
+    useroom r_abs;
+    r_abs.r_Size = sum;
+
+    //初始化房间状态
+    for (int i = 0; i < sum; i++) {
+        if (i < 10) {
+            r_abs.roomArrary[i].roomType = "高等";
+            r_abs.roomArrary[i].price = 666;
+        }
+        else if (i < 20) {
+            r_abs.roomArrary[i].roomType = "中等";
+            r_abs.roomArrary[i].price = 333;
+        }
+        else {
+            r_abs.roomArrary[i].roomType = "简易";
+            r_abs.roomArrary[i].price = 100;
+        }
+        r_abs.roomArrary[i].r_n_state = 0; // 所有房间初始为空闲
+    }
+    //加载用户和房间数据
+    abs.loadFromFile("users.txt");
+    r_abs.loadFromFile("rooms.txt");
+
+    while (true) {
+        Menu1();
+        cout << "请输入操作数:>";
+        cin >> select;
+        switch (select) {
+        case 1:
+            Enter_Menu2(&abs,&r_abs);
+            break;
+        case 2:
+            addPerson(&abs);
+            break;
+        case 0:
+            cout << "欢迎下次使用" << endl;
+            //保存用户和房间数据
+            abs.saveToFile("user.txt");
+            r_abs.saveToFile("rooms.txt");
+            system("pause");
+            return 0;
+        default:
+            cout << "输入错误，请重新输入！" << endl;
+            break;
+        }
+    }
+    return 0;
+}
